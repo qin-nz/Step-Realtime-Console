@@ -53,7 +53,7 @@ export const getInstruction = (modelName: string) => {
 }
 
 export const isDefaultInstruction = (instruction: string) => {
-  return instruction === defaultInstruction || instruction === thinkDefaultInstruction;
+  return !instruction || instruction.trim() === '' || instruction === defaultInstruction || instruction === thinkDefaultInstruction;
 }
 
 // 子元素数量改变时，自动滚动到底部

@@ -43,8 +43,8 @@
   let startTime = new Date().toISOString(); // Record conversation start time
   let connectionError = $state(''); // Store connection error messages
 
-  let instructions = $state(defaultInstruction); // Default persona
-  let newInstruction = $state((() => instructions)()); // Copy for editing in modal
+  let instructions = $state(''); // Default persona (empty, user can modify)
+  let newInstruction = $state(''); // Copy for editing in modal
   let conversationalMode = $state('manual'); // Conversation mode: manual or realtime
 
   let instructionsModal: HTMLDialogElement; // System prompt modal
@@ -61,6 +61,7 @@
       const savedApiKeyType = localStorage.getItem('apiKeyType');
       const savedVoice = localStorage.getItem('selectedVoice');
       const savedVoiceInput = localStorage.getItem('voice');
+      const savedInstructions = localStorage.getItem('instructions');
 
       if (savedWsUrl) wsUrl = savedWsUrl;
       if (savedModelName) modelName = savedModelName;
@@ -71,6 +72,14 @@
         if (voice) selectedVoice = voice;
       }
       if (savedVoiceInput) voice = savedVoiceInput;
+      // Only load saved instructions if it's not the old default instruction
+      // Check if it's the old default by comparing with getInstruction result
+      if (savedInstructions !== null) {
+        const currentDefault = getInstruction(modelName);
+        if (savedInstructions !== currentDefault && savedInstructions !== defaultInstruction) {
+          instructions = savedInstructions;
+        }
+      }
     }
   });
 
@@ -88,6 +97,7 @@
       localStorage.setItem('apiKeyType', apiKeyType);
       localStorage.setItem('selectedVoice', selectedVoice.value);
       localStorage.setItem('voice', voice);
+      localStorage.setItem('instructions', instructions);
     }
   });
 
@@ -108,12 +118,7 @@
     }
   });
 
-  // 当模型切换时，如果 instructions 是默认值，自动更新为对应模型的默认值
-  $effect(() => {
-    if (isDefaultInstruction(instructions)) {
-      instructions = getInstruction(modelName);
-    }
-  });
+  // 不再自动更新 instructions，保持用户设置或为空
 
 
   /**
@@ -262,8 +267,8 @@
       wsProxyUrl += `?${queryString}`;
     }
 
-    // Use user instructions if modified, otherwise use default instruction based on model
-    const combinedInstructions = isDefaultInstruction(instructions) ? getInstruction(modelName) : instructions;
+    // Use user instructions directly (empty string if not set)
+    const combinedInstructions = instructions;
     // Use user input voice (required)
     const voiceValue = voice.trim();
     client = new RealtimeClient({
@@ -572,9 +577,8 @@
   // Update system prompt
   async function changeInstructions() {
     await tick(); // Wait for tick to ensure instructions are updated
-    // Use user instructions if modified, otherwise use default instruction based on model
-    const combinedInstructions = isDefaultInstruction(instructions) ? getInstruction(modelName) : instructions;
-    client?.updateSession({ instructions: combinedInstructions });
+    // Use user instructions directly (empty string if not set)
+    client?.updateSession({ instructions: instructions });
   }
 
   // Update voice when voice input changes
@@ -733,9 +737,8 @@
       <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
         <button
           onclick={() => {
-            if (isDefaultInstruction(newInstruction)) {
-              newInstruction = getInstruction(modelName);
-            }
+            // Copy current instructions to newInstruction for editing
+            newInstruction = instructions;
             instructionsModal.showModal();
           }}
           class="btn rounded-box h-10 px-2 text-xs sm:px-4 sm:text-sm"
